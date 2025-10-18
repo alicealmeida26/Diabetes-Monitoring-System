@@ -13,9 +13,19 @@ interface Patient {
   lng?: number;
 }
 
+interface Street {
+  id: number;
+  nome: string;
+  tipo_logradouro: string;
+}
+
 export default function Page() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [streets, setStreets] = useState<string[]>([]);
+  const [filteredStreets, setFilteredStreets] = useState<string[]>([]);
+  const [streetSearchTerm, setStreetSearchTerm] = useState('');
+  const [showStreetDropdown, setShowStreetDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -28,21 +38,23 @@ export default function Page() {
     ultima_consulta: ''
   });
 
-  const streets = [
-    'Rua das Flores',
-    'Av. Principal',
-    'Rua do Sol',
-    'Rua da Esperança',
-    'Av. Central',
-    'Rua dos Jardins',
-    'Rua Santa Maria',
-    'Av. Independência'
-  ];
-
-  // Carregar pacientes ao montar o componente
+  // Carregar ruas e pacientes ao montar o componente
   useEffect(() => {
+    fetchStreets();
     fetchPatients();
   }, []);
+
+  // Filtrar ruas quando o termo de busca mudar
+  useEffect(() => {
+    if (streetSearchTerm.trim() === '') {
+      setFilteredStreets(streets);
+    } else {
+      const filtered = streets.filter(street =>
+        street.toLowerCase().includes(streetSearchTerm.toLowerCase())
+      );
+      setFilteredStreets(filtered);
+    }
+  }, [streetSearchTerm, streets]);
 
   // Filtrar pacientes quando o termo de busca mudar
   useEffect(() => {
@@ -58,6 +70,23 @@ export default function Page() {
     }
   }, [searchTerm, patients]);
 
+  // Buscar ruas da API
+  const fetchStreets = async () => {
+    try {
+      const response = await fetch('/api/streets');
+      const data = await response.json();
+      
+      if (data.success) {
+        const streetNames = data.data.map((s: Street) => s.nome);
+        setStreets(streetNames);
+        setFilteredStreets(streetNames);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar ruas:', error);
+      alert('Erro ao carregar ruas do banco de dados');
+    }
+  };
+
   // Buscar pacientes da API
   const fetchPatients = async () => {
     try {
@@ -66,13 +95,8 @@ export default function Page() {
       const data = await response.json();
       
       if (data.success) {
-        const patientsWithCoords = data.data.map((p: Patient) => ({
-          ...p,
-          lat: Math.random() * 80 + 10,
-          lng: Math.random() * 80 + 10
-        }));
-        setPatients(patientsWithCoords);
-        setFilteredPatients(patientsWithCoords);
+        setPatients(data.data);
+        setFilteredPatients(data.data);
       }
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
@@ -82,15 +106,28 @@ export default function Page() {
     }
   };
 
+  // Selecionar rua da lista
+  const handleSelectStreet = (street: string) => {
+    setFormData({ ...formData, endereços: street });
+    setStreetSearchTerm(street);
+    setShowStreetDropdown(false);
+  };
+
   // Adicionar novo paciente
   const handleSubmit = async () => {
     if (formData.nomes && formData.endereços && formData.número && formData.ultima_consulta) {
       try {
         setLoading(true);
+        
+        const dataFormatada = formData.ultima_consulta.split('-').reverse().join('/');
+        
         const response = await fetch('/api/patients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({
+            ...formData,
+            ultima_consulta: dataFormatada
+          })
         });
 
         const data = await response.json();
@@ -98,6 +135,7 @@ export default function Page() {
         if (data.success) {
           alert('Paciente adicionado com sucesso!');
           setFormData({ nomes: '', endereços: '', número: '', ultima_consulta: '' });
+          setStreetSearchTerm('');
           fetchPatients();
         } else {
           alert(data.message || 'Erro ao adicionar paciente');
@@ -115,7 +153,13 @@ export default function Page() {
 
   // Abrir modal de edição
   const handleEdit = (patient: Patient) => {
-    setEditingPatient(patient);
+    const [day, month, year] = patient.ultima_consulta.split('/');
+    const dataFormatada = `${year}-${month}-${day}`;
+    
+    setEditingPatient({
+      ...patient,
+      ultima_consulta: dataFormatada
+    });
     setIsEditing(true);
   };
 
@@ -125,10 +169,16 @@ export default function Page() {
 
     try {
       setLoading(true);
+      
+      const dataFormatada = editingPatient.ultima_consulta.split('-').reverse().join('/');
+      
       const response = await fetch('/api/patients', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingPatient)
+        body: JSON.stringify({
+          ...editingPatient,
+          ultima_consulta: dataFormatada
+        })
       });
 
       const data = await response.json();
@@ -222,23 +272,50 @@ export default function Page() {
                   />
                 </div>
 
-                <div>
+                {/* CAMPO DE BUSCA DE RUAS - NOVO! */}
+                <div className="relative">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Home className="w-4 h-4" />
                     Endereço
                   </label>
-                  <select
-                    value={formData.endereços}
-                    onChange={(e) => setFormData({ ...formData, endereços: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione uma rua</option>
-                    {streets.map((street) => (
-                      <option key={street} value={street}>
-                        {street}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                    <input
+                      type="text"
+                      value={streetSearchTerm}
+                      onChange={(e) => {
+                        setStreetSearchTerm(e.target.value);
+                        setShowStreetDropdown(true);
+                      }}
+                      onFocus={() => setShowStreetDropdown(true)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Buscar rua..."
+                    />
+                  </div>
+                  
+                  {/* Dropdown de ruas filtradas */}
+                  {showStreetDropdown && filteredStreets.length > 0 && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredStreets.map((street) => (
+                        <div
+                          key={street}
+                          onClick={() => handleSelectStreet(street)}
+                          className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700"
+                        >
+                          {street}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Mensagem quando não encontra ruas */}
+                  {showStreetDropdown && streetSearchTerm && filteredStreets.length === 0 && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+                      <p className="text-sm text-gray-500 text-center">
+                        Nenhuma rua encontrada
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -258,7 +335,7 @@ export default function Page() {
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Calendar className="w-4 h-4" />
-                    Última Consulta
+                    Data
                   </label>
                   <input
                     type="date"
@@ -302,26 +379,31 @@ export default function Page() {
                   </defs>
                   <rect width="100%" height="100%" fill="url(#grid)" />
                   
-                  {filteredPatients.map((patient) => (
-                    <g key={patient.id}>
-                      <circle
-                        cx={`${patient.lng}%`}
-                        cy={`${patient.lat}%`}
-                        r="8"
-                        fill="#4F46E5"
-                        className="cursor-pointer hover:fill-indigo-700 transition-colors"
-                      />
-                      <circle
-                        cx={`${patient.lng}%`}
-                        cy={`${patient.lat}%`}
-                        r="14"
-                        fill="none"
-                        stroke="#4F46E5"
-                        strokeWidth="2"
-                        opacity="0.3"
-                      />
-                    </g>
-                  ))}
+                  {filteredPatients.map((patient) => {
+                    const normalizedLng = ((patient.lng || -51.1246) + 51.15) * 2000;
+                    const normalizedLat = ((patient.lat || -30.0116) + 30.03) * 2000;
+                    
+                    return (
+                      <g key={patient.id}>
+                        <circle
+                          cx={`${normalizedLng}%`}
+                          cy={`${normalizedLat}%`}
+                          r="8"
+                          fill="#4F46E5"
+                          className="cursor-pointer hover:fill-indigo-700 transition-colors"
+                        />
+                        <circle
+                          cx={`${normalizedLng}%`}
+                          cy={`${normalizedLat}%`}
+                          r="14"
+                          fill="none"
+                          stroke="#4F46E5"
+                          strokeWidth="2"
+                          opacity="0.3"
+                        />
+                      </g>
+                    );
+                  })}
                 </svg>
 
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-md">
