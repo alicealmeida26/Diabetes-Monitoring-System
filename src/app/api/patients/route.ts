@@ -53,11 +53,13 @@ export async function GET(request: Request) {
 
 // POST - Adicionar novo paciente
 export async function POST(request: Request) {
-  let connection;
+  let connection: mysql.Connection | undefined;
   
   try {
     const body = await request.json();
     const { nomes, endereços, número, ultima_consulta } = body;
+    
+    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, ultima_consulta });
     
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
     }
     
     connection = await getConnection();
+    console.log('[API] ✅ Conexão com banco estabelecida');
     
     // Normalizar nome da rua
     const ruaNormalizada = endereços
@@ -76,6 +79,8 @@ export async function POST(request: Request) {
       .replace(/\s+/g, ' ')
       .trim();
     
+    console.log('[API] 🔄 Rua normalizada:', ruaNormalizada);
+    
     // Buscar ID da rua
     const [ruaRows]: any = await connection.execute(
       'SELECT id FROM ruas WHERE nome_normalizado = ? OR nome = ?',
@@ -83,43 +88,84 @@ export async function POST(request: Request) {
     );
     
     if (!ruaRows || ruaRows.length === 0) {
+      console.log('[API] ❌ Rua não encontrada:', endereços);
       return NextResponse.json(
         { success: false, message: 'Rua não encontrada no cadastro' },
         { status: 400 }
       );
     }
     
-    const ruaId = ruaRows[0].id;
+    const ruaId: number = ruaRows[0].id;
+    console.log('[API] ✅ Rua encontrada com ID:', ruaId);
     
     // Verificar se endereço existe
     const [enderecoRows]: any = await connection.execute(
-      'SELECT id FROM enderecos WHERE rua_id = ? AND numero = ?',
+      'SELECT id, latitude, longitude FROM enderecos WHERE rua_id = ? AND numero = ?',
       [ruaId, número]
     );
     
-    let enderecoId;
+    let enderecoId: number;
     
     if (enderecoRows && enderecoRows.length > 0) {
+      // Endereço já existe
       enderecoId = enderecoRows[0].id;
+      console.log(`[API] ♻️ Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
     } else {
-      // Criar novo endereço com coordenadas aproximadas
+      // Endereço novo - BUSCAR COORDENADAS
+      console.log(`[API] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
+      
+      const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
+      
+      const geocodingResult = await geocodeAddressGeoapify(endereços, número);
+      
+      if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
+        console.error(`[API] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: `Não foi possível encontrar as coordenadas do endereço "${endereços}, ${número}". Verifique se o endereço está correto ou escolha um endereço já cadastrado.`
+          },
+          { status: 400 }
+        );
+      }
+      
+      const latitude: number = geocodingResult.latitude;
+      const longitude: number = geocodingResult.longitude;
+      const coordenadasDMS: string = decimalToDMS(latitude, longitude);
+      
+      console.log(`[API] ✅ Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      console.log(`[API] 📍 Formato DMS: ${coordenadasDMS}`);
+      
+      console.log('[API] 💾 Salvando endereço no banco...');
+      console.log('[API] 📝 Dados para inserir:', { ruaId, número, latitude, longitude, coordenadasDMS });
+      
       const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, latitude, longitude) 
-         VALUES (?, ?, ?, ?)`,
-        [ruaId, número, -30.0116, -51.1246]
+        `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [ruaId, número, latitude, longitude, coordenadasDMS]
       );
       enderecoId = result.insertId;
+      
+      console.log(`[API] ✅ Endereço criado com ID: ${enderecoId}`);
     }
     
-    // Converter data DD/MM/YYYY para YYYY-MM-DD
+    // Converter data
+    console.log('[API] 📅 Convertendo data:', ultima_consulta);
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
+    console.log('[API] 📅 Data formatada:', dataFormatada);
     
     // Inserir paciente
+    console.log('[API] 💾 Salvando paciente no banco...');
+    console.log('[API] 📝 Dados para inserir:', { nomes, enderecoId, dataFormatada });
+    
     const [insertResult]: any = await connection.execute(
       'INSERT INTO pacientes (nome, endereco_id, ultima_consulta) VALUES (?, ?, ?)',
       [nomes, enderecoId, dataFormatada]
     );
+    
+    console.log(`[API] ✅ Paciente criado com ID: ${insertResult.insertId}`);
     
     return NextResponse.json({
       success: true,
@@ -128,19 +174,23 @@ export async function POST(request: Request) {
     });
     
   } catch (error) {
-    console.error('Erro ao adicionar paciente:', error);
+    console.error('[API] ❌❌❌ ERRO CRÍTICO:', error);
+    console.error('[API] Stack trace:', (error as Error).stack);
     return NextResponse.json(
       { success: false, message: 'Erro ao adicionar paciente' },
       { status: 500 }
     );
   } finally {
-    if (connection) await connection.end();
+    if (connection) {
+      await connection.end();
+      console.log('[API] 🔌 Conexão com banco fechada');
+    }
   }
 }
 
 // PUT - Atualizar paciente
 export async function PUT(request: Request) {
-  let connection;
+  let connection: mysql.Connection | undefined;
   
   try {
     const body = await request.json();
@@ -155,7 +205,6 @@ export async function PUT(request: Request) {
     
     connection = await getConnection();
     
-    // Buscar rua
     const ruaNormalizada = endereços
       .toLowerCase()
       .normalize('NFD')
@@ -175,36 +224,63 @@ export async function PUT(request: Request) {
       );
     }
     
-    const ruaId = ruaRows[0].id;
+    const ruaId: number = ruaRows[0].id;
     
-    // Buscar ou criar endereço
     const [enderecoRows]: any = await connection.execute(
       'SELECT id FROM enderecos WHERE rua_id = ? AND numero = ?',
       [ruaId, número]
     );
     
-    let enderecoId;
+    let enderecoId: number;
     
     if (enderecoRows && enderecoRows.length > 0) {
       enderecoId = enderecoRows[0].id;
+      console.log(`[API PUT] Endereço existente: ${endereços}, ${número}`);
     } else {
+      console.log(`[API PUT] Endereço novo! Buscando coordenadas via Geocoding...`);
+      
+      const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
+      
+      const geocodingResult = await geocodeAddressGeoapify(endereços, número);
+      
+      if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
+        console.error(`[API PUT] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: `Não foi possível encontrar as coordenadas do endereço "${endereços}, ${número}". Verifique se o endereço está correto ou escolha um endereço já cadastrado.`
+          },
+          { status: 400 }
+        );
+      }
+      
+      const latitude: number = geocodingResult.latitude;
+      const longitude: number = geocodingResult.longitude;
+      const coordenadasDMS: string = decimalToDMS(latitude, longitude);
+      
+      console.log(`[API PUT] ✅ Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      console.log(`[API PUT] 📍 Formato DMS: ${coordenadasDMS}`);
+      
       const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, latitude, longitude) 
-         VALUES (?, ?, ?, ?)`,
-        [ruaId, número, -30.0116, -51.1246]
+        `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [ruaId, número, latitude, longitude, coordenadasDMS]
       );
       enderecoId = result.insertId;
+      
+      console.log(`[API PUT] ✅ Endereço criado com ID: ${enderecoId}`);
     }
     
-    // Converter data
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
     
-    // Atualizar paciente
     await connection.execute(
       'UPDATE pacientes SET nome = ?, endereco_id = ?, ultima_consulta = ? WHERE id = ?',
       [nomes, enderecoId, dataFormatada, id]
     );
+    
+    console.log(`[API PUT] ✅ Paciente ${id} atualizado com sucesso`);
     
     return NextResponse.json({
       success: true,
@@ -212,7 +288,7 @@ export async function PUT(request: Request) {
     });
     
   } catch (error) {
-    console.error('Erro ao atualizar paciente:', error);
+    console.error('[API PUT] ❌ Erro:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao atualizar paciente' },
       { status: 500 }
@@ -222,9 +298,9 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE - Remover paciente (soft delete)
+// DELETE - Remover paciente
 export async function DELETE(request: Request) {
-  let connection;
+  let connection: mysql.Connection | undefined;
   
   try {
     const { searchParams } = new URL(request.url);
@@ -239,7 +315,6 @@ export async function DELETE(request: Request) {
     
     connection = await getConnection();
     
-    // Soft delete
     await connection.execute(
       'UPDATE pacientes SET ativo = FALSE WHERE id = ?',
       [id]
