@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { nomes, endereços, número, ultima_consulta } = body;
     
-    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, ultima_consulta });
+    console.log('[API]  Dados recebidos:', { nomes, endereços, número, ultima_consulta });
     
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     }
     
     connection = await getConnection();
-    console.log('[API] ✅ Conexão com banco estabelecida');
+    console.log('[API]  Conexão com banco estabelecida');
     
     // Normalizar nome da rua
     const ruaNormalizada = endereços
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       .replace(/\s+/g, ' ')
       .trim();
     
-    console.log('[API] 🔄 Rua normalizada:', ruaNormalizada);
+    console.log('[API]  Rua normalizada:', ruaNormalizada);
     
     // Buscar ID da rua
     const [ruaRows]: any = await connection.execute(
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     );
     
     if (!ruaRows || ruaRows.length === 0) {
-      console.log('[API] ❌ Rua não encontrada:', endereços);
+      console.log('[API]  Rua não encontrada:', endereços);
       return NextResponse.json(
         { success: false, message: 'Rua não encontrada no cadastro' },
         { status: 400 }
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     }
     
     const ruaId: number = ruaRows[0].id;
-    console.log('[API] ✅ Rua encontrada com ID:', ruaId);
+    console.log('[API]  Rua encontrada com ID:', ruaId);
     
     // Verificar se endereço existe
     const [enderecoRows]: any = await connection.execute(
@@ -109,17 +109,17 @@ export async function POST(request: Request) {
     if (enderecoRows && enderecoRows.length > 0) {
       // Endereço já existe
       enderecoId = enderecoRows[0].id;
-      console.log(`[API] ♻️ Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
+      console.log(`[API] Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
     } else {
       // Endereço novo - BUSCAR COORDENADAS
-      console.log(`[API] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
+      console.log(`[API]  Endereço novo! Buscando coordenadas via Geocoding...`);
       
       const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
       
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        console.error(`[API] Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
         
         return NextResponse.json(
           { 
@@ -134,11 +134,11 @@ export async function POST(request: Request) {
       const longitude: number = geocodingResult.longitude;
       const coordenadasDMS: string = decimalToDMS(latitude, longitude);
       
-      console.log(`[API] ✅ Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
-      console.log(`[API] 📍 Formato DMS: ${coordenadasDMS}`);
+      console.log(`[API] Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      console.log(`[API] Formato DMS: ${coordenadasDMS}`);
       
-      console.log('[API] 💾 Salvando endereço no banco...');
-      console.log('[API] 📝 Dados para inserir:', { ruaId, número, latitude, longitude, coordenadasDMS });
+      console.log('[API]  Salvando endereço no banco...');
+      console.log('[API] Dados para inserir:', { ruaId, número, latitude, longitude, coordenadasDMS });
       
       const [result]: any = await connection.execute(
         `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
@@ -147,25 +147,25 @@ export async function POST(request: Request) {
       );
       enderecoId = result.insertId;
       
-      console.log(`[API] ✅ Endereço criado com ID: ${enderecoId}`);
+      console.log(`[API] Endereço criado com ID: ${enderecoId}`);
     }
     
     // Converter data
-    console.log('[API] 📅 Convertendo data:', ultima_consulta);
+    console.log('[API] Convertendo data:', ultima_consulta);
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
-    console.log('[API] 📅 Data formatada:', dataFormatada);
+    console.log('[API]  Data formatada:', dataFormatada);
     
     // Inserir paciente
-    console.log('[API] 💾 Salvando paciente no banco...');
-    console.log('[API] 📝 Dados para inserir:', { nomes, enderecoId, dataFormatada });
+    console.log('[API]  Salvando paciente no banco...');
+    console.log('[API]  Dados para inserir:', { nomes, enderecoId, dataFormatada });
     
     const [insertResult]: any = await connection.execute(
       'INSERT INTO pacientes (nome, endereco_id, ultima_consulta) VALUES (?, ?, ?)',
       [nomes, enderecoId, dataFormatada]
     );
     
-    console.log(`[API] ✅ Paciente criado com ID: ${insertResult.insertId}`);
+    console.log(`[API] Paciente criado com ID: ${insertResult.insertId}`);
     
     return NextResponse.json({
       success: true,
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
     });
     
   } catch (error) {
-    console.error('[API] ❌❌❌ ERRO CRÍTICO:', error);
+    console.error('[API] ERRO CRÍTICO:', error);
     console.error('[API] Stack trace:', (error as Error).stack);
     return NextResponse.json(
       { success: false, message: 'Erro ao adicionar paciente' },
@@ -244,7 +244,7 @@ export async function PUT(request: Request) {
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API PUT] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        console.error(`[API PUT] Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
         
         return NextResponse.json(
           { 
@@ -259,8 +259,8 @@ export async function PUT(request: Request) {
       const longitude: number = geocodingResult.longitude;
       const coordenadasDMS: string = decimalToDMS(latitude, longitude);
       
-      console.log(`[API PUT] ✅ Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
-      console.log(`[API PUT] 📍 Formato DMS: ${coordenadasDMS}`);
+      console.log(`[API PUT] Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      console.log(`[API PUT]  Formato DMS: ${coordenadasDMS}`);
       
       const [result]: any = await connection.execute(
         `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
@@ -269,7 +269,7 @@ export async function PUT(request: Request) {
       );
       enderecoId = result.insertId;
       
-      console.log(`[API PUT] ✅ Endereço criado com ID: ${enderecoId}`);
+      console.log(`[API PUT] Endereço criado com ID: ${enderecoId}`);
     }
     
     const [day, month, year] = ultima_consulta.split('/');
@@ -280,7 +280,7 @@ export async function PUT(request: Request) {
       [nomes, enderecoId, dataFormatada, id]
     );
     
-    console.log(`[API PUT] ✅ Paciente ${id} atualizado com sucesso`);
+    console.log(`[API PUT] Paciente ${id} atualizado com sucesso`);
     
     return NextResponse.json({
       success: true,
@@ -288,7 +288,7 @@ export async function PUT(request: Request) {
     });
     
   } catch (error) {
-    console.error('[API PUT] ❌ Erro:', error);
+    console.error('[API PUT]  Erro:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao atualizar paciente' },
       { status: 500 }
