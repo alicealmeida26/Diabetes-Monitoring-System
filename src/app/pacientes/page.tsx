@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';  
+import dynamic from 'next/dynamic';
 
 interface Patient {
   id: number;
@@ -20,7 +21,14 @@ interface Street {
   tipo_logradouro: string;
 }
 
-
+const MapComponent = dynamic(() => import('./MapComponent'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[500px] bg-gray-100 rounded-lg flex items-center justify-center">
+      <p className="text-gray-500">Carregando mapa...</p>
+    </div>
+  ),
+});
   
 
 export default function Page() {
@@ -405,49 +413,7 @@ export default function Page() {
                 Mapa de Localização
               </h2>
               
-              <div className="relative bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg h-[400px] overflow-hidden mb-4">
-                <svg className="w-full h-full">
-                  <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(99, 102, 241, 0.1)" strokeWidth="1"/>
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
-                  
-                  {filteredPatients.map((patient) => {
-                    const normalizedLng = ((patient.lng || -51.1246) + 51.15) * 2000;
-                    const normalizedLat = ((patient.lat || -30.0116) + 30.03) * 2000;
-                    
-                    return (
-                      <g key={patient.id}>
-                        <circle
-                          cx={`${normalizedLng}%`}
-                          cy={`${normalizedLat}%`}
-                          r="8"
-                          fill="#4F46E5"
-                          className="cursor-pointer hover:fill-indigo-700 transition-colors"
-                        />
-                        <circle
-                          cx={`${normalizedLng}%`}
-                          cy={`${normalizedLat}%`}
-                          r="14"
-                          fill="none"
-                          stroke="#4F46E5"
-                          strokeWidth="2"
-                          opacity="0.3"
-                        />
-                      </g>
-                    );
-                  })}
-                </svg>
-
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-md">
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
-                    <span className="text-gray-700">Localização de Pacientes</span>
-                  </div>
-                </div>
-              </div>
+              <MapComponent patients={filteredPatients} />
 
               <div className="max-h-48 overflow-y-auto">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
