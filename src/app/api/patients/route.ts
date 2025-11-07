@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { nomes, endereços, número, ultima_consulta } = body;
     
-    console.log('[API]  Dados recebidos:', { nomes, endereços, número, ultima_consulta });
+    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, ultima_consulta });
     
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
