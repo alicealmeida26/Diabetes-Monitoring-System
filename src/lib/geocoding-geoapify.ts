@@ -20,7 +20,7 @@ export async function geocodeAddressGeoapify(
 ): Promise<GeocodingResult | null> {
   
   try {
-    const endereco = `${numero} ${rua}, ${bairro}, ${cidade}, ${estado}, ${pais}`;
+    const endereco = `${rua}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${pais}`;
     
     console.log(`[Geoapify]  Buscando: ${endereco}`);
     

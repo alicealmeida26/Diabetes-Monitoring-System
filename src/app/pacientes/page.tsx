@@ -246,37 +246,52 @@ export default function Page() {
       setLoading(false);
     }
   };
+  const [userName, setUserName] = useState<string | null>(null);
+  useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUserName(parsed.nome_completo || parsed.usuario || 'Usuário');
+      } catch {
+        setUserName('Usuário');
+      }
+    } else {
+      setUserName('Usuário');
+    }
+  }
+}, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
+        <header className="mb-8 mt-16 text-center font-serif">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Monitoramento de Pacientes Diabéticos Unidade de Saúde Passo das Pedras I
           </h1>
-          <p className="text-gray-600">Sistema de localização e acompanhamento de pacientes diabéticos</p>
+          <p className="text-gray-600 font-serif">Sistema de localização e acompanhamento de pacientes diabéticos</p>
         </header>
 
-              {/* Barra de usuário e logout */}
-      <div className="mb-4 flex justify-end">
-        <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-3">
-          <User className="w-4 h-4 text-gray-600" />
-          <span className="text-sm text-gray-700">
-            {typeof window !== 'undefined' && localStorage.getItem('user') 
-              ? JSON.parse(localStorage.getItem('user')!).nome_completo || JSON.parse(localStorage.getItem('user')!).usuario
-              : 'Usuário'}
-          </span>
-          <button
-            onClick={() => {
-              localStorage.removeItem('user');
-              router.push('/login');
-            }}
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
-          >
-            Sair
-          </button>
+                      {/* Barra de usuário e logout */}
+              <div className="mb-4 flex justify-end">
+          <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-3">
+            <User className="w-4 h-4 text-gray-600" />
+            <span className="text-sm text-gray-700">
+              {userName ?? 'Carregando...'}
+            </span>
+            <button
+              onClick={() => {
+                localStorage.removeItem('user');
+                router.push('/login');
+              }}
+              className="text-sm text-red-600 hover:text-red-700 font-medium"
+            >
+              Sair
+            </button>
+          </div>
         </div>
-      </div>
+        
 
         {/* Barra de Busca */}
         <div className="mb-6 bg-white rounded-xl shadow-lg p-4">
@@ -415,48 +430,6 @@ export default function Page() {
               
               <MapComponent patients={filteredPatients} />
 
-              <div className="max-h-48 overflow-y-auto">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Lista de Pacientes {searchTerm && `(${filteredPatients.length} resultado(s))`}
-                </h3>
-                <div className="space-y-2">
-                  {filteredPatients.length === 0 ? (
-                    <p className="text-gray-500 text-sm text-center py-4">
-                      {loading ? 'Carregando...' : 'Nenhum paciente encontrado'}
-                    </p>
-                  ) : (
-                    filteredPatients.map((patient) => (
-                      <div key={patient.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-2 flex-1">
-                          <MapPin className="w-4 h-4 text-indigo-600" />
-                          <div>
-                            <span className="font-medium text-gray-800 block">{patient.nomes}</span>
-                            <span className="text-gray-600 text-xs">
-                              {patient.endereços}, {patient.número}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEdit(patient)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(patient.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
