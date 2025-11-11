@@ -27,7 +27,8 @@ export async function GET(request: Request) {
         e.numero as número,
         DATE_FORMAT(p.ultima_consulta, '%d/%m/%Y') as ultima_consulta,
         e.latitude as lat,
-        e.longitude as lng
+        e.longitude as lng,
+        e.complemento
       FROM pacientes p
       INNER JOIN enderecos e ON p.endereco_id = e.id
       INNER JOIN ruas r ON e.rua_id = r.id
@@ -57,9 +58,9 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { nomes, endereços, número, ultima_consulta } = body;
+    const { nomes, endereços, número,complemento, ultima_consulta } = body;
     
-    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, ultima_consulta });
+   
     
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
@@ -134,38 +135,31 @@ export async function POST(request: Request) {
       const longitude: number = geocodingResult.longitude;
       const coordenadasDMS: string = decimalToDMS(latitude, longitude);
       
-      console.log(`[API] Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
-      console.log(`[API] Formato DMS: ${coordenadasDMS}`);
+
       
-      console.log('[API]  Salvando endereço no banco...');
-      console.log('[API] Dados para inserir:', { ruaId, número, latitude, longitude, coordenadasDMS });
-      
-      const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [ruaId, número, latitude, longitude, coordenadasDMS]
+        const [result]: any = await connection.execute(
+        `INSERT INTO enderecos (rua_id, numero, complemento, latitude, longitude, coordenadas_dms) 
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        [ruaId, número, complemento, latitude, longitude, coordenadasDMS]
       );
       enderecoId = result.insertId;
       
-      console.log(`[API] Endereço criado com ID: ${enderecoId}`);
     }
     
     // Converter data
-    console.log('[API] Convertendo data:', ultima_consulta);
+  
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
-    console.log('[API]  Data formatada:', dataFormatada);
     
-    // Inserir paciente
-    console.log('[API]  Salvando paciente no banco...');
-    console.log('[API]  Dados para inserir:', { nomes, enderecoId, dataFormatada });
+    
+    
     
     const [insertResult]: any = await connection.execute(
       'INSERT INTO pacientes (nome, endereco_id, ultima_consulta) VALUES (?, ?, ?)',
       [nomes, enderecoId, dataFormatada]
     );
     
-    console.log(`[API] Paciente criado com ID: ${insertResult.insertId}`);
+ 
     
     return NextResponse.json({
       success: true,
@@ -194,11 +188,11 @@ export async function PUT(request: Request) {
   
   try {
     const body = await request.json();
-    const { id, nomes, endereços, número, ultima_consulta } = body;
+    const { id, nomes, endereços, número, complemento, ultima_consulta } = body;
     
     if (!id || !nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
-        { success: false, message: 'Todos os campos são obrigatórios' },
+        { success: false, message: 'Campos obrigatórios não preenchidos' },
         { status: 400 }
       );
     }
@@ -258,14 +252,12 @@ export async function PUT(request: Request) {
       const latitude: number = geocodingResult.latitude;
       const longitude: number = geocodingResult.longitude;
       const coordenadasDMS: string = decimalToDMS(latitude, longitude);
-      
-      console.log(`[API PUT] Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
-      console.log(`[API PUT]  Formato DMS: ${coordenadasDMS}`);
+    
       
       const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, latitude, longitude, coordenadas_dms) 
+        `INSERT INTO enderecos (rua_id, numero, complemento, latitude, longitude, coordenadas_dms) 
          VALUES (?, ?, ?, ?, ?)`,
-        [ruaId, número, latitude, longitude, coordenadasDMS]
+        [ruaId, número, complemento, latitude, longitude, coordenadasDMS]
       );
       enderecoId = result.insertId;
       

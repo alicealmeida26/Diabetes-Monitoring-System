@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save } from 'lucide-react';
+import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save, Milestone, Pin, DoorOpen, LocateFixed } from 'lucide-react';
 import { useRouter } from 'next/navigation';  
 import dynamic from 'next/dynamic';
 
@@ -10,6 +10,7 @@ interface Patient {
   nomes: string;
   endereços: string;
   número: string;
+  complemento?: string;
   ultima_consulta: string;
   lat?: number;
   lng?: number;
@@ -57,6 +58,7 @@ export default function Page() {
     nomes: '',
     endereços: '',
     número: '',
+    complemento: '',
     ultima_consulta: ''
   });
 
@@ -156,7 +158,7 @@ export default function Page() {
 
         if (data.success) {
           alert('Paciente adicionado com sucesso!');
-          setFormData({ nomes: '', endereços: '', número: '', ultima_consulta: '' });
+          setFormData({ nomes: '', endereços: '', número: '',complemento: '', ultima_consulta: '' });
           setStreetSearchTerm('');
           fetchPatients();
         } else {
@@ -333,8 +335,8 @@ export default function Page() {
                 {/* CAMPO DE BUSCA DE RUAS - NOVO! */}
                 <div className="relative">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <Home className="w-4 h-4" />
-                    Endereço
+                    <MapPin className="w-4 h-4" />
+                    Rua
                   </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
@@ -376,21 +378,36 @@ export default function Page() {
                   )}
                 </div>
 
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Home className="w-4 h-4" />
+                  Número
+                </label>
+                <input
+                  type="text"
+                  value={formData.número}
+                  onChange={(e) => setFormData({ ...formData, número: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Número da casa"
+                />
+              </div>
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <Hash className="w-4 h-4" />
-                    Número
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.número}
-                    onChange={(e) => setFormData({ ...formData, número: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Número da casa"
-                  />
-                </div>
+                    <DoorOpen className="w-4 h-4" />
+                    Complemento
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.complemento}
+                        onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Apto, bloco, etc (opcional)"
+                      />
+                    </div>
 
-                <div>
+                                    
+
+                  <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Calendar className="w-4 h-4" />
                     Data
@@ -424,7 +441,7 @@ export default function Page() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg p-6 h-full">
               <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-indigo-600" />
+                <LocateFixed className="w-5 h-5 text-indigo-600" />
                 Mapa de Localização
               </h2>
               

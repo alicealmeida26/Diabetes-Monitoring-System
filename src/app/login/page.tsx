@@ -118,16 +118,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* BOTÃO CRIAR CONTA - NOVO! */}
-          <div className="mt-4">
-            <button
-              onClick={() => router.push('/cadastro')}
-              className="w-full bg-white hover:bg-gray-50 border-2 border-indigo-600 text-indigo-600 font-medium py-3 px-4 rounded-lg transition-colors"
-            >
-              Criar Conta
-            </button>
-          </div>
         </div>
       </div>
     </div>

@@ -42,7 +42,7 @@ const createLucideIcon = (
 
 // Criar os ícones
 const healthIcon = createLucideIcon(Hospital, '#ffffff', 36, '#ce1919ff'); // Vermelho
-const patientIcon = createLucideIcon(User, '#ffffff', 20, '#4f72aaff'); // Azul
+const patientIcon = createLucideIcon(User, '#ffffff', 20, '#0850c4ff'); // Azul
 
 
 interface Patient {
