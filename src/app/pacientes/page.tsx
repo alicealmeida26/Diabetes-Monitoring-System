@@ -1,7 +1,8 @@
 'use client';
-
+import Toast from '@/components/Toast';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { useState, useEffect } from 'react';
-import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save, Milestone, Pin, DoorOpen, LocateFixed } from 'lucide-react';
+import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save, DoorOpen, LocateFixed } from 'lucide-react';
 import { useRouter } from 'next/navigation';  
 import dynamic from 'next/dynamic';
 
@@ -30,12 +31,10 @@ const MapComponent = dynamic(() => import('./MapComponent'), {
     </div>
   ),
 });
-  
 
 export default function Page() {
   const router = useRouter();
   
-  // Verificar autenticação ao carregar a página
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
@@ -53,6 +52,27 @@ export default function Page() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  
+  // Estados para Toast e Confirmation Modal
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  } | null>(null);
+
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
+    setToast({ message, type });
+  };
+
+  const showConfirmation = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmation({ title, message, onConfirm });
+  };
 
   const [formData, setFormData] = useState({
     nomes: '',
@@ -62,13 +82,11 @@ export default function Page() {
     ultima_consulta: ''
   });
 
-  // Carregar ruas e pacientes ao montar o componente
   useEffect(() => {
     fetchStreets();
     fetchPatients();
   }, []);
 
-  // Filtrar ruas quando o termo de busca mudar
   useEffect(() => {
     if (streetSearchTerm.trim() === '') {
       setFilteredStreets(streets);
@@ -80,7 +98,6 @@ export default function Page() {
     }
   }, [streetSearchTerm, streets]);
 
-  // Filtrar pacientes quando o termo de busca mudar
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredPatients(patients);
@@ -94,7 +111,23 @@ export default function Page() {
     }
   }, [searchTerm, patients]);
 
-  // Buscar ruas da API
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          setUserName(parsed.nome_completo || parsed.usuario || 'Usuário');
+        } catch {
+          setUserName('Usuário');
+        }
+      } else {
+        setUserName('Usuário');
+      }
+    }
+  }, []);
+
+  // Buscar ruas da API - COM TOAST
   const fetchStreets = async () => {
     try {
       const response = await fetch('/api/streets');
@@ -107,11 +140,11 @@ export default function Page() {
       }
     } catch (error) {
       console.error('Erro ao carregar ruas:', error);
-      alert('Erro ao carregar ruas do banco de dados');
+      showToast('Erro ao carregar ruas do banco de dados', 'error');
     }
   };
 
-  // Buscar pacientes da API
+  // Buscar pacientes da API - COM TOAST
   const fetchPatients = async () => {
     try {
       setLoading(true);
@@ -124,20 +157,19 @@ export default function Page() {
       }
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
-      alert('Erro ao carregar pacientes');
+      showToast('Erro ao carregar pacientes', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Selecionar rua da lista
   const handleSelectStreet = (street: string) => {
     setFormData({ ...formData, endereços: street });
     setStreetSearchTerm(street);
     setShowStreetDropdown(false);
   };
 
-  // Adicionar novo paciente
+  // Adicionar novo paciente - COM TOAST
   const handleSubmit = async () => {
     if (formData.nomes && formData.endereços && formData.número && formData.ultima_consulta) {
       try {
@@ -157,25 +189,24 @@ export default function Page() {
         const data = await response.json();
 
         if (data.success) {
-          alert('Paciente adicionado com sucesso!');
-          setFormData({ nomes: '', endereços: '', número: '',complemento: '', ultima_consulta: '' });
+          showToast('Paciente adicionado com sucesso!', 'success');
+          setFormData({ nomes: '', endereços: '', número: '', complemento: '', ultima_consulta: '' });
           setStreetSearchTerm('');
           fetchPatients();
         } else {
-          alert(data.message || 'Erro ao adicionar paciente');
+          showToast(data.message || 'Erro ao adicionar paciente', 'error');
         }
       } catch (error) {
         console.error('Erro ao adicionar paciente:', error);
-        alert('Erro ao adicionar paciente');
+        showToast('Erro ao adicionar paciente', 'error');
       } finally {
         setLoading(false);
       }
     } else {
-      alert('Preencha todos os campos!');
+      showToast('Preencha todos os campos obrigatórios!', 'warning');
     }
   };
 
-  // Abrir modal de edição
   const handleEdit = (patient: Patient) => {
     const [day, month, year] = patient.ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
@@ -187,7 +218,7 @@ export default function Page() {
     setIsEditing(true);
   };
 
-  // Salvar edição
+  // Salvar edição - COM TOAST
   const handleSaveEdit = async () => {
     if (!editingPatient) return;
 
@@ -208,62 +239,50 @@ export default function Page() {
       const data = await response.json();
 
       if (data.success) {
-        alert('Paciente atualizado com sucesso!');
+        showToast('Paciente atualizado com sucesso!', 'success');
         setIsEditing(false);
         setEditingPatient(null);
         fetchPatients();
       } else {
-        alert(data.message || 'Erro ao atualizar paciente');
+        showToast(data.message || 'Erro ao atualizar paciente', 'error');
       }
     } catch (error) {
       console.error('Erro ao atualizar paciente:', error);
-      alert('Erro ao atualizar paciente');
+      showToast('Erro ao atualizar paciente', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Deletar paciente
+  // Deletar paciente - COM MODAL DE CONFIRMAÇÃO
   const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja remover este paciente?')) return;
+    showConfirmation(
+      'Excluir Paciente',
+      'Tem certeza que deseja remover este paciente? Esta ação não pode ser desfeita.',
+      async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/patients?id=${id}`, {
+            method: 'DELETE'
+          });
 
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/patients?id=${id}`, {
-        method: 'DELETE'
-      });
+          const data = await response.json();
 
-      const data = await response.json();
-
-      if (data.success) {
-        alert('Paciente removido com sucesso!');
-        fetchPatients();
-      } else {
-        alert(data.message || 'Erro ao remover paciente');
+          if (data.success) {
+            showToast('Paciente removido com sucesso!', 'success');
+            fetchPatients();
+          } else {
+            showToast(data.message || 'Erro ao remover paciente', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao remover paciente:', error);
+          showToast('Erro ao remover paciente', 'error');
+        } finally {
+          setLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Erro ao remover paciente:', error);
-      alert('Erro ao remover paciente');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
-  const [userName, setUserName] = useState<string | null>(null);
-  useEffect(() => {
-  if (typeof window !== 'undefined') {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUserName(parsed.nome_completo || parsed.usuario || 'Usuário');
-      } catch {
-        setUserName('Usuário');
-      }
-    } else {
-      setUserName('Usuário');
-    }
-  }
-}, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -275,8 +294,8 @@ export default function Page() {
           <p className="text-gray-600 font-serif">Sistema de localização e acompanhamento de pacientes diabéticos</p>
         </header>
 
-                      {/* Barra de usuário e logout */}
-              <div className="mb-4 flex justify-end">
+        {/* Barra de usuário e logout */}
+        <div className="mb-4 flex justify-end">
           <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-3">
             <User className="w-4 h-4 text-gray-600" />
             <span className="text-sm text-gray-700">
@@ -293,7 +312,6 @@ export default function Page() {
             </button>
           </div>
         </div>
-        
 
         {/* Barra de Busca */}
         <div className="mb-6 bg-white rounded-xl shadow-lg p-4">
@@ -332,7 +350,6 @@ export default function Page() {
                   />
                 </div>
 
-                {/* CAMPO DE BUSCA DE RUAS - NOVO! */}
                 <div className="relative">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <MapPin className="w-4 h-4" />
@@ -353,7 +370,6 @@ export default function Page() {
                     />
                   </div>
                   
-                  {/* Dropdown de ruas filtradas */}
                   {showStreetDropdown && filteredStreets.length > 0 && (
                     <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       {filteredStreets.map((street) => (
@@ -368,7 +384,6 @@ export default function Page() {
                     </div>
                   )}
                   
-                  {/* Mensagem quando não encontra ruas */}
                   {showStreetDropdown && streetSearchTerm && filteredStreets.length === 0 && (
                     <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
                       <p className="text-sm text-gray-500 text-center">
@@ -378,36 +393,35 @@ export default function Page() {
                   )}
                 </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                  <Home className="w-4 h-4" />
-                  Número
-                </label>
-                <input
-                  type="text"
-                  value={formData.número}
-                  onChange={(e) => setFormData({ ...formData, número: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Número da casa"
-                />
-              </div>
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                    <Home className="w-4 h-4" />
+                    Número
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.número}
+                    onChange={(e) => setFormData({ ...formData, número: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Número da casa"
+                  />
+                </div>
+
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <DoorOpen className="w-4 h-4" />
                     Complemento
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.complemento}
-                        onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="Apto, bloco, etc (opcional)"
-                      />
-                    </div>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.complemento}
+                    onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Apto, bloco, etc (opcional)"
+                  />
+                </div>
 
-                                    
-
-                  <div>
+                <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Calendar className="w-4 h-4" />
                     Data
@@ -445,16 +459,19 @@ export default function Page() {
                 Mapa de Localização
               </h2>
               
-              <MapComponent patients={filteredPatients} />
-
+              <MapComponent 
+                patients={filteredPatients}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             </div>
           </div>
         </div>
 
         {/* Modal de Edição */}
         {isEditing && editingPatient && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
+            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full relative z-[10000]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                   <Edit2 className="w-5 h-5 text-indigo-600" />
@@ -515,6 +532,20 @@ export default function Page() {
 
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                    <DoorOpen className="w-4 h-4" />
+                    Complemento
+                  </label>
+                  <input
+                    type="text"
+                    value={editingPatient.complemento || ''}
+                    onChange={(e) => setEditingPatient({ ...editingPatient, complemento: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Apto, bloco, etc (opcional)"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Calendar className="w-4 h-4" />
                     Última Consulta
                   </label>
@@ -545,6 +576,31 @@ export default function Page() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Toast Component */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+
+        {/* Confirmation Modal */}
+        {confirmation && (
+          <ConfirmationModal
+            title={confirmation.title}
+            message={confirmation.message}
+            confirmText="Sim, excluir"
+            cancelText="Cancelar"
+            onConfirm={() => {
+              confirmation.onConfirm();
+              setConfirmation(null);
+            }}
+            onCancel={() => setConfirmation(null)}
+            type="danger"
+          />
         )}
       </div>
     </div>
