@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { MapPin, Plus, Calendar, User, Home, Hash, Search, Edit2, Trash2, X, Save, DoorOpen, LocateFixed } from 'lucide-react';
 import { useRouter } from 'next/navigation';  
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 
 interface Patient {
   id: number;
@@ -287,12 +288,26 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 mt-16 text-center font-serif">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Monitoramento de Pacientes Diabéticos Unidade de Saúde Passo das Pedras I
-          </h1>
-          <p className="text-gray-600 font-serif">Sistema de localização e acompanhamento de pacientes diabéticos</p>
-        </header>
+       <header className="mb-8 mt-16 text-center">
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/infobio.png"
+                alt="Logo InfoBio"
+                width={180}
+                height={180}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              Monitoramento de Pacientes Diabéticos Unidade de Saúde Passo das Pedras I
+            </h1>
+            <p className="text-gray-600 ">
+              Sistema de mapa inteligente para acompanhamento de pacientes
+            </p>
+          </header>
 
         {/* Barra de usuário e logout */}
         <div className="mb-4 flex justify-end">
@@ -321,7 +336,7 @@ export default function Page() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar paciente por nome, endereço ou número..."
+              placeholder="Buscar paciente por nome, endereço ou número"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
@@ -330,8 +345,8 @@ export default function Page() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-xl font-semibold text-gray-1000 mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-indigo-800" />
                 Cadastrar Paciente
               </h2>
               
@@ -417,7 +432,7 @@ export default function Page() {
                     value={formData.complemento}
                     onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Apto, bloco, etc (opcional)"
+                    placeholder="Apartamento, bloco -(opcional)"
                   />
                 </div>
 

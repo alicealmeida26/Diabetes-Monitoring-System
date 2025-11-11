@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Lock, LogIn, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,11 +53,19 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-2xl p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
-              <LogIn className="w-8 h-8 text-indigo-600" />
+            {/* Logo substituindo o ícone */}
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/infobio.png"
+                alt="InfoBio Logo"
+                width={180}
+                height={70}
+                className="object-contain"
+                priority
+              />
             </div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Sistema de Monitoramento
+              Sistema de Monitoramento de Pacientes Diabéticos
             </h1>
             <p className="text-gray-600 text-sm">
               Unidade de Saúde Passo das Pedras I
