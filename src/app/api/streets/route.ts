@@ -1,32 +1,18 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-const dbConfig = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
-  let connection;
-  
   try {
-    connection = await getConnection();
+    const { data, error } = await supabase
+      .from('ruas')
+      .select('id, nome, tipo_logradouro')
+      .order('nome');
     
-    const [rows] = await connection.execute(`
-      SELECT id, nome, tipo_logradouro
-      FROM ruas
-      ORDER BY nome
-    `);
+    if (error) throw error;
     
     return NextResponse.json({
       success: true,
-      data: rows
+      data: data
     });
     
   } catch (error) {
@@ -35,7 +21,5 @@ export async function GET() {
       { success: false, message: 'Erro ao buscar ruas' },
       { status: 500 }
     );
-  } finally {
-    if (connection) await connection.end();
   }
 }

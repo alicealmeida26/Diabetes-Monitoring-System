@@ -1,44 +1,54 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-const dbConfig = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-};
-
-async function getConnection() {
-  return await mysql.createConnection(dbConfig);
-}
+import { supabase } from '@/lib/supabase';
 
 // GET - Buscar todos os pacientes
 export async function GET(request: Request) {
-  let connection;
-  
   try {
-    connection = await getConnection();
-    
-    const [rows] = await connection.execute(`
-      SELECT 
-        p.id,
-        p.nome as nomes,
-        r.nome as endereços,
-        e.numero as número,
-        DATE_FORMAT(p.ultima_consulta, '%d/%m/%Y') as ultima_consulta,
-        e.latitude as lat,
-        e.longitude as lng,
-        e.complemento
-      FROM pacientes p
-      INNER JOIN enderecos e ON p.endereco_id = e.id
-      INNER JOIN ruas r ON e.rua_id = r.id
-      WHERE p.ativo = TRUE
-      ORDER BY p.nome
-    `);
-    
+    const { data, error } = await supabase
+      .from('pacientes')
+      .select(`
+        id,
+        nome,
+        ultima_consulta,
+        ativo,
+        enderecos (
+          id,
+          numero,
+          complemento,
+          latitude,
+          longitude,
+          ruas (
+            nome
+          )
+        )
+      `)
+      .eq('ativo', true)
+      .order('nome');
+
+    if (error) throw error;
+
+    // Formatar dados para o formato esperado pelo frontend
+   // Formatar dados para o formato esperado pelo frontend
+const formattedData = data?.map(p => {
+  const endereco = p.enderecos as any;
+  const rua = endereco?.ruas as any;
+  
+  return {
+    id: p.id,
+    nomes: p.nome,
+    endereços: rua?.nome || '',
+    número: endereco?.numero || '',
+    complemento: endereco?.complemento || '',
+    ultima_consulta: p.ultima_consulta ? 
+      new Date(p.ultima_consulta).toLocaleDateString('pt-BR') : '',
+    lat: endereco?.latitude || 0,
+    lng: endereco?.longitude || 0
+  };
+});
+
     return NextResponse.json({
       success: true,
-      data: rows
+      data: formattedData
     });
     
   } catch (error) {
@@ -47,20 +57,14 @@ export async function GET(request: Request) {
       { success: false, message: 'Erro ao buscar pacientes' },
       { status: 500 }
     );
-  } finally {
-    if (connection) await connection.end();
   }
 }
 
 // POST - Adicionar novo paciente
 export async function POST(request: Request) {
-  let connection: mysql.Connection | undefined;
-  
   try {
     const body = await request.json();
-    const { nomes, endereços, número,complemento, ultima_consulta } = body;
-    
-   
+    const { nomes, endereços, número, complemento, ultima_consulta } = body;
     
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
@@ -69,8 +73,7 @@ export async function POST(request: Request) {
       );
     }
     
-    connection = await getConnection();
-    console.log('[API]  Conexão com banco estabelecida');
+    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, complemento, ultima_consulta });
     
     // Normalizar nome da rua
     const ruaNormalizada = endereços
@@ -80,47 +83,52 @@ export async function POST(request: Request) {
       .replace(/\s+/g, ' ')
       .trim();
     
-    console.log('[API]  Rua normalizada:', ruaNormalizada);
+    console.log('[API] 🔍 Rua normalizada:', ruaNormalizada);
     
     // Buscar ID da rua
-    const [ruaRows]: any = await connection.execute(
-      'SELECT id FROM ruas WHERE nome_normalizado = ? OR nome = ?',
-      [ruaNormalizada, endereços]
-    );
+    const { data: ruaData, error: ruaError } = await supabase
+      .from('ruas')
+      .select('id')
+      .or(`nome_normalizado.eq.${ruaNormalizada},nome.eq.${endereços}`)
+      .limit(1)
+      .single();
     
-    if (!ruaRows || ruaRows.length === 0) {
-      console.log('[API]  Rua não encontrada:', endereços);
+    if (ruaError || !ruaData) {
+      console.log('[API] ❌ Rua não encontrada:', endereços);
       return NextResponse.json(
         { success: false, message: 'Rua não encontrada no cadastro' },
         { status: 400 }
       );
     }
     
-    const ruaId: number = ruaRows[0].id;
-    console.log('[API]  Rua encontrada com ID:', ruaId);
+    const ruaId = ruaData.id;
+    console.log('[API] ✅ Rua encontrada com ID:', ruaId);
     
     // Verificar se endereço existe
-    const [enderecoRows]: any = await connection.execute(
-      'SELECT id, latitude, longitude FROM enderecos WHERE rua_id = ? AND numero = ?',
-      [ruaId, número]
-    );
+    const { data: enderecoData, error: enderecoError } = await supabase
+      .from('enderecos')
+      .select('id, latitude, longitude')
+      .eq('rua_id', ruaId)
+      .eq('numero', número)
+      .limit(1)
+      .single();
     
     let enderecoId: number;
     
-    if (enderecoRows && enderecoRows.length > 0) {
+    if (enderecoData && !enderecoError) {
       // Endereço já existe
-      enderecoId = enderecoRows[0].id;
-      console.log(`[API] Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
+      enderecoId = enderecoData.id;
+      console.log(`[API] ✅ Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
     } else {
       // Endereço novo - BUSCAR COORDENADAS
-      console.log(`[API]  Endereço novo! Buscando coordenadas via Geocoding...`);
+      console.log(`[API] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
       
       const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
       
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API] Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        console.error(`[API] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
         
         return NextResponse.json(
           { 
@@ -131,61 +139,77 @@ export async function POST(request: Request) {
         );
       }
       
-      const latitude: number = geocodingResult.latitude;
-      const longitude: number = geocodingResult.longitude;
-      const coordenadasDMS: string = decimalToDMS(latitude, longitude);
+      const latitude = geocodingResult.latitude;
+      const longitude = geocodingResult.longitude;
+      const coordenadasDMS = decimalToDMS(latitude, longitude);
       
-
+      console.log(`[API] 📍 Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      console.log(`[API] 📍 Formato DMS: ${coordenadasDMS}`);
       
-        const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, complemento, latitude, longitude, coordenadas_dms) 
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [ruaId, número, complemento, latitude, longitude, coordenadasDMS]
-      );
-      enderecoId = result.insertId;
+      // Inserir novo endereço
+      const { data: novoEndereco, error: insertEnderecoError } = await supabase
+        .from('enderecos')
+        .insert({
+          rua_id: ruaId,
+          numero: número,
+          complemento: complemento || null,
+          latitude: latitude,
+          longitude: longitude,
+          coordenadas_dms: coordenadasDMS
+        })
+        .select('id')
+        .single();
       
+      if (insertEnderecoError || !novoEndereco) {
+        console.error('[API] ❌ Erro ao inserir endereço:', insertEnderecoError);
+        throw insertEnderecoError;
+      }
+      
+      enderecoId = novoEndereco.id;
+      console.log(`[API] ✅ Endereço criado com ID: ${enderecoId}`);
     }
     
-    // Converter data
-  
+    // Converter data (de dd/mm/yyyy para yyyy-mm-dd)
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
     
+    console.log('[API] 📅 Data formatada:', dataFormatada);
     
+    // Inserir paciente
+    const { data: novoPaciente, error: insertPacienteError } = await supabase
+      .from('pacientes')
+      .insert({
+        nome: nomes,
+        endereco_id: enderecoId,
+        ultima_consulta: dataFormatada
+      })
+      .select('id')
+      .single();
     
+    if (insertPacienteError || !novoPaciente) {
+      console.error('[API] ❌ Erro ao inserir paciente:', insertPacienteError);
+      throw insertPacienteError;
+    }
     
-    const [insertResult]: any = await connection.execute(
-      'INSERT INTO pacientes (nome, endereco_id, ultima_consulta) VALUES (?, ?, ?)',
-      [nomes, enderecoId, dataFormatada]
-    );
-    
- 
+    console.log(`[API] ✅ Paciente criado com ID: ${novoPaciente.id}`);
     
     return NextResponse.json({
       success: true,
       message: 'Paciente cadastrado com sucesso',
-      id: insertResult.insertId
+      id: novoPaciente.id
     });
     
   } catch (error) {
-    console.error('[API] ERRO CRÍTICO:', error);
-    console.error('[API] Stack trace:', (error as Error).stack);
+    console.error('[API] ❌ ERRO CRÍTICO:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao adicionar paciente' },
       { status: 500 }
     );
-  } finally {
-    if (connection) {
-      await connection.end();
-      console.log('[API] 🔌 Conexão com banco fechada');
-    }
   }
 }
 
 // PUT - Atualizar paciente
 export async function PUT(request: Request) {
-  let connection: mysql.Connection | undefined;
-  
   try {
     const body = await request.json();
     const { id, nomes, endereços, número, complemento, ultima_consulta } = body;
@@ -197,8 +221,7 @@ export async function PUT(request: Request) {
       );
     }
     
-    connection = await getConnection();
-    
+    // Normalizar nome da rua
     const ruaNormalizada = endereços
       .toLowerCase()
       .normalize('NFD')
@@ -206,39 +229,46 @@ export async function PUT(request: Request) {
       .replace(/\s+/g, ' ')
       .trim();
     
-    const [ruaRows]: any = await connection.execute(
-      'SELECT id FROM ruas WHERE nome_normalizado = ? OR nome = ?',
-      [ruaNormalizada, endereços]
-    );
+    // Buscar ID da rua
+    const { data: ruaData, error: ruaError } = await supabase
+      .from('ruas')
+      .select('id')
+      .or(`nome_normalizado.eq.${ruaNormalizada},nome.eq.${endereços}`)
+      .limit(1)
+      .single();
     
-    if (!ruaRows || ruaRows.length === 0) {
+    if (ruaError || !ruaData) {
       return NextResponse.json(
         { success: false, message: 'Rua não encontrada' },
         { status: 400 }
       );
     }
     
-    const ruaId: number = ruaRows[0].id;
+    const ruaId = ruaData.id;
     
-    const [enderecoRows]: any = await connection.execute(
-      'SELECT id FROM enderecos WHERE rua_id = ? AND numero = ?',
-      [ruaId, número]
-    );
+    // Verificar se endereço existe
+    const { data: enderecoData, error: enderecoError } = await supabase
+      .from('enderecos')
+      .select('id')
+      .eq('rua_id', ruaId)
+      .eq('numero', número)
+      .limit(1)
+      .single();
     
     let enderecoId: number;
     
-    if (enderecoRows && enderecoRows.length > 0) {
-      enderecoId = enderecoRows[0].id;
-      console.log(`[API PUT] Endereço existente: ${endereços}, ${número}`);
+    if (enderecoData && !enderecoError) {
+      enderecoId = enderecoData.id;
+      console.log(`[API PUT] ✅ Endereço existente: ${endereços}, ${número}`);
     } else {
-      console.log(`[API PUT] Endereço novo! Buscando coordenadas via Geocoding...`);
+      console.log(`[API PUT] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
       
       const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
       
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API PUT] Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        console.error(`[API PUT] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
         
         return NextResponse.json(
           { 
@@ -249,30 +279,53 @@ export async function PUT(request: Request) {
         );
       }
       
-      const latitude: number = geocodingResult.latitude;
-      const longitude: number = geocodingResult.longitude;
-      const coordenadasDMS: string = decimalToDMS(latitude, longitude);
-    
+      const latitude = geocodingResult.latitude;
+      const longitude = geocodingResult.longitude;
+      const coordenadasDMS = decimalToDMS(latitude, longitude);
       
-      const [result]: any = await connection.execute(
-        `INSERT INTO enderecos (rua_id, numero, complemento, latitude, longitude, coordenadas_dms) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [ruaId, número, complemento, latitude, longitude, coordenadasDMS]
-      );
-      enderecoId = result.insertId;
+      console.log(`[API PUT] 📍 Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
       
-      console.log(`[API PUT] Endereço criado com ID: ${enderecoId}`);
+      // Inserir novo endereço
+      const { data: novoEndereco, error: insertEnderecoError } = await supabase
+        .from('enderecos')
+        .insert({
+          rua_id: ruaId,
+          numero: número,
+          complemento: complemento || null,
+          latitude: latitude,
+          longitude: longitude,
+          coordenadas_dms: coordenadasDMS
+        })
+        .select('id')
+        .single();
+      
+      if (insertEnderecoError || !novoEndereco) {
+        throw insertEnderecoError;
+      }
+      
+      enderecoId = novoEndereco.id;
+      console.log(`[API PUT] ✅ Endereço criado com ID: ${enderecoId}`);
     }
     
+    // Converter data
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
     
-    await connection.execute(
-      'UPDATE pacientes SET nome = ?, endereco_id = ?, ultima_consulta = ? WHERE id = ?',
-      [nomes, enderecoId, dataFormatada, id]
-    );
+    // Atualizar paciente
+    const { error: updateError } = await supabase
+      .from('pacientes')
+      .update({
+        nome: nomes,
+        endereco_id: enderecoId,
+        ultima_consulta: dataFormatada
+      })
+      .eq('id', id);
     
-    console.log(`[API PUT] Paciente ${id} atualizado com sucesso`);
+    if (updateError) {
+      throw updateError;
+    }
+    
+    console.log(`[API PUT] ✅ Paciente ${id} atualizado com sucesso`);
     
     return NextResponse.json({
       success: true,
@@ -280,20 +333,16 @@ export async function PUT(request: Request) {
     });
     
   } catch (error) {
-    console.error('[API PUT]  Erro:', error);
+    console.error('[API PUT] ❌ Erro:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao atualizar paciente' },
       { status: 500 }
     );
-  } finally {
-    if (connection) await connection.end();
   }
 }
 
 // DELETE - Remover paciente
 export async function DELETE(request: Request) {
-  let connection: mysql.Connection | undefined;
-  
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -305,12 +354,15 @@ export async function DELETE(request: Request) {
       );
     }
     
-    connection = await getConnection();
+    // Atualizar paciente para inativo
+    const { error } = await supabase
+      .from('pacientes')
+      .update({ ativo: false })
+      .eq('id', id);
     
-    await connection.execute(
-      'UPDATE pacientes SET ativo = FALSE WHERE id = ?',
-      [id]
-    );
+    if (error) {
+      throw error;
+    }
     
     return NextResponse.json({
       success: true,
@@ -323,7 +375,5 @@ export async function DELETE(request: Request) {
       { success: false, message: 'Erro ao remover paciente' },
       { status: 500 }
     );
-  } finally {
-    if (connection) await connection.end();
   }
 }
