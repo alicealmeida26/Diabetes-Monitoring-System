@@ -49,19 +49,24 @@ export async function POST(request: Request) {
       data: { usuario }
     });
 
-  } catch (error: any) {
-    console.error('Erro ao criar usuário:', error);
+  } catch (error: unknown) {
+  console.error('Erro ao criar usuário:', error);
+  
+  // Verificar se o erro existe e tem a propriedade 'code'
+  if (error && typeof error === 'object' && 'code' in error) {
+    const pgError = error as { code: string };
     
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (pgError.code === 'ER_DUP_ENTRY') {
       return NextResponse.json({
         success: false,
         message: 'Este usuário já existe'
       }, { status: 409 });
     }
-
-    return NextResponse.json({
-      success: false,
-      message: 'Erro ao criar usuário'
-    }, { status: 500 });
   }
+  
+  return NextResponse.json({
+    success: false,
+    message: 'Erro ao criar usuário'
+  }, { status: 500 });
+}
 }

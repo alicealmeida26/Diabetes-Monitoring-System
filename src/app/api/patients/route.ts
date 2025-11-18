@@ -1,8 +1,30 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Interfaces para tipar os dados do Supabase
+interface Rua {
+  nome: string;
+}
+
+interface Endereco {
+  id: number;
+  numero: string;
+  complemento: string | null;
+  latitude: number;
+  longitude: number;
+  ruas: Rua;
+}
+
+interface Paciente {
+  id: number;
+  nome: string;
+  ultima_consulta: string | null;
+  ativo: boolean;
+  enderecos: Endereco;
+}
+
 // GET - Buscar todos os pacientes
-export async function GET(request: Request) {
+export async function GET() {  // removido 'request' não usado
   try {
     const { data, error } = await supabase
       .from('pacientes')
@@ -28,23 +50,22 @@ export async function GET(request: Request) {
     if (error) throw error;
 
     // Formatar dados para o formato esperado pelo frontend
-   // Formatar dados para o formato esperado pelo frontend
-const formattedData = data?.map(p => {
-  const endereco = p.enderecos as any;
-  const rua = endereco?.ruas as any;
-  
-  return {
-    id: p.id,
-    nomes: p.nome,
-    endereços: rua?.nome || '',
-    número: endereco?.numero || '',
-    complemento: endereco?.complemento || '',
-    ultima_consulta: p.ultima_consulta ? 
-      new Date(p.ultima_consulta).toLocaleDateString('pt-BR') : '',
-    lat: endereco?.latitude || 0,
-    lng: endereco?.longitude || 0
-  };
-});
+    const formattedData = (data as unknown as Paciente[])?.map(p => {
+      const endereco = p.enderecos;
+      const rua = endereco.ruas;
+      
+      return {
+        id: p.id,
+        nomes: p.nome,
+        endereços: rua.nome || '',
+        número: endereco.numero || '',
+        complemento: endereco.complemento || '',
+        ultima_consulta: p.ultima_consulta ? 
+          new Date(p.ultima_consulta).toLocaleDateString('pt-BR') : '',
+        lat: endereco.latitude || 0,
+        lng: endereco.longitude || 0
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -73,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
     
-    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, complemento, ultima_consulta });
+    
     
     // Normalizar nome da rua
     const ruaNormalizada = endereços
@@ -83,7 +104,7 @@ export async function POST(request: Request) {
       .replace(/\s+/g, ' ')
       .trim();
     
-    console.log('[API] 🔍 Rua normalizada:', ruaNormalizada);
+   
     
     // Buscar ID da rua
     const { data: ruaData, error: ruaError } = await supabase
@@ -94,7 +115,6 @@ export async function POST(request: Request) {
       .single();
     
     if (ruaError || !ruaData) {
-      console.log('[API] ❌ Rua não encontrada:', endereços);
       return NextResponse.json(
         { success: false, message: 'Rua não encontrada no cadastro' },
         { status: 400 }
@@ -102,7 +122,7 @@ export async function POST(request: Request) {
     }
     
     const ruaId = ruaData.id;
-    console.log('[API] ✅ Rua encontrada com ID:', ruaId);
+  
     
     // Verificar se endereço existe
     const { data: enderecoData, error: enderecoError } = await supabase
@@ -118,17 +138,14 @@ export async function POST(request: Request) {
     if (enderecoData && !enderecoError) {
       // Endereço já existe
       enderecoId = enderecoData.id;
-      console.log(`[API] ✅ Endereço existente: ${endereços}, ${número} (ID: ${enderecoId})`);
+    
     } else {
-      // Endereço novo - BUSCAR COORDENADAS
-      console.log(`[API] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
       
       const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
       
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
         
         return NextResponse.json(
           { 
@@ -142,9 +159,7 @@ export async function POST(request: Request) {
       const latitude = geocodingResult.latitude;
       const longitude = geocodingResult.longitude;
       const coordenadasDMS = decimalToDMS(latitude, longitude);
-      
-      console.log(`[API] 📍 Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
-      console.log(`[API] 📍 Formato DMS: ${coordenadasDMS}`);
+    
       
       // Inserir novo endereço
       const { data: novoEndereco, error: insertEnderecoError } = await supabase
@@ -161,19 +176,18 @@ export async function POST(request: Request) {
         .single();
       
       if (insertEnderecoError || !novoEndereco) {
-        console.error('[API] ❌ Erro ao inserir endereço:', insertEnderecoError);
+
         throw insertEnderecoError;
       }
       
       enderecoId = novoEndereco.id;
-      console.log(`[API] ✅ Endereço criado com ID: ${enderecoId}`);
+    
     }
     
     // Converter data (de dd/mm/yyyy para yyyy-mm-dd)
     const [day, month, year] = ultima_consulta.split('/');
     const dataFormatada = `${year}-${month}-${day}`;
-    
-    console.log('[API] 📅 Data formatada:', dataFormatada);
+  
     
     // Inserir paciente
     const { data: novoPaciente, error: insertPacienteError } = await supabase
@@ -187,11 +201,10 @@ export async function POST(request: Request) {
       .single();
     
     if (insertPacienteError || !novoPaciente) {
-      console.error('[API] ❌ Erro ao inserir paciente:', insertPacienteError);
       throw insertPacienteError;
     }
     
-    console.log(`[API] ✅ Paciente criado com ID: ${novoPaciente.id}`);
+  
     
     return NextResponse.json({
       success: true,
@@ -200,7 +213,6 @@ export async function POST(request: Request) {
     });
     
   } catch (error) {
-    console.error('[API] ❌ ERRO CRÍTICO:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao adicionar paciente' },
       { status: 500 }
@@ -259,16 +271,15 @@ export async function PUT(request: Request) {
     
     if (enderecoData && !enderecoError) {
       enderecoId = enderecoData.id;
-      console.log(`[API PUT] ✅ Endereço existente: ${endereços}, ${número}`);
     } else {
-      console.log(`[API PUT] 🆕 Endereço novo! Buscando coordenadas via Geocoding...`);
+  
       
       const { geocodeAddressGeoapify, isValidCoordinate, decimalToDMS } = await import('@/lib/geocoding-geoapify');
       
       const geocodingResult = await geocodeAddressGeoapify(endereços, número);
       
       if (!geocodingResult || !isValidCoordinate(geocodingResult.latitude, geocodingResult.longitude)) {
-        console.error(`[API PUT] ❌ Não foi possível encontrar coordenadas para: ${endereços}, ${número}`);
+        
         
         return NextResponse.json(
           { 
@@ -283,7 +294,7 @@ export async function PUT(request: Request) {
       const longitude = geocodingResult.longitude;
       const coordenadasDMS = decimalToDMS(latitude, longitude);
       
-      console.log(`[API PUT] 📍 Coordenadas precisas obtidas: ${latitude}, ${longitude}`);
+      
       
       // Inserir novo endereço
       const { data: novoEndereco, error: insertEnderecoError } = await supabase
@@ -304,7 +315,7 @@ export async function PUT(request: Request) {
       }
       
       enderecoId = novoEndereco.id;
-      console.log(`[API PUT] ✅ Endereço criado com ID: ${enderecoId}`);
+    
     }
     
     // Converter data
@@ -324,8 +335,7 @@ export async function PUT(request: Request) {
     if (updateError) {
       throw updateError;
     }
-    
-    console.log(`[API PUT] ✅ Paciente ${id} atualizado com sucesso`);
+  
     
     return NextResponse.json({
       success: true,
@@ -333,7 +343,6 @@ export async function PUT(request: Request) {
     });
     
   } catch (error) {
-    console.error('[API PUT] ❌ Erro:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao atualizar paciente' },
       { status: 500 }
@@ -370,7 +379,6 @@ export async function DELETE(request: Request) {
     });
     
   } catch (error) {
-    console.error('Erro ao remover paciente:', error);
     return NextResponse.json(
       { success: false, message: 'Erro ao remover paciente' },
       { status: 500 }

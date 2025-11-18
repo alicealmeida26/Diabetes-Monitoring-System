@@ -3,13 +3,13 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Hospital, User, Edit, Trash2 } from 'lucide-react';
+import { Hospital, User, Edit, Trash2, LucideIcon } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
 import { useState } from 'react';
 
 // Função para criar ícone Lucide
 const createLucideIcon = (
-  IconComponent: any,
+  IconComponent: LucideIcon,
   color: string,
   size: number,
   backgroundColor?: string
