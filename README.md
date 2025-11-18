@@ -5,6 +5,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
+para instalar as dependências:
+npm install
+
+para rodar:
 npm run dev
 # or
 yarn dev
@@ -12,6 +16,10 @@ yarn dev
 pnpm dev
 # or
 bun dev
+
+nunca commitar o .env
+git pull pra pegar as alterações
+commit + git push pra subir as suas alterações
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
