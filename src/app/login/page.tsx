@@ -49,7 +49,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-6">
+    <div className="min-h-screen h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-2xl p-8">
           <div className="text-center mb-8">
