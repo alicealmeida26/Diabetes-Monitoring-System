@@ -69,22 +69,18 @@ export default function MapComponent({ patients, onEdit, onDelete }: MapComponen
   const patientsWithCoords = patients.filter(p => p.lat && p.lng);
 
   const handleDelete = async (patient: Patient) => {
-    if (!confirm(`Tem certeza que deseja excluir o paciente ${patient.nomes}?`)) {
-      return;
+  setDeletingId(patient.id);
+  
+  try {
+    if (onDelete) {
+      await onDelete(patient.id);
     }
-
-    setDeletingId(patient.id);
-    
-    try {
-      if (onDelete) {
-        await onDelete(patient.id);
-      }
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  } catch (error) {
+    console.error('Erro ao excluir:', error);
+  } finally {
+    setDeletingId(null);
+  }
+};
 
   const handleEdit = (patient: Patient) => {
     if (onEdit) {
