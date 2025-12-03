@@ -55,7 +55,6 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
   
-  // Estados para Toast e Confirmation Modal
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
@@ -128,7 +127,6 @@ export default function Page() {
     }
   }, []);
 
-  // Buscar ruas da API - COM TOAST
   const fetchStreets = async () => {
     try {
       const response = await fetch('/api/streets');
@@ -145,7 +143,6 @@ export default function Page() {
     }
   };
 
-  // Buscar pacientes da API - COM TOAST
   const fetchPatients = async () => {
     try {
       setLoading(true);
@@ -170,7 +167,6 @@ export default function Page() {
     setShowStreetDropdown(false);
   };
 
-  // Adicionar novo paciente - COM TOAST
   const handleSubmit = async () => {
     if (formData.nomes && formData.endereços && formData.número && formData.ultima_consulta) {
       try {
@@ -219,7 +215,6 @@ export default function Page() {
     setIsEditing(true);
   };
 
-  // Salvar edição - COM TOAST
   const handleSaveEdit = async () => {
     if (!editingPatient) return;
 
@@ -255,7 +250,6 @@ export default function Page() {
     }
   };
 
-  // Deletar paciente - COM MODAL DE CONFIRMAÇÃO
   const handleDelete = async (id: number) => {
     showConfirmation(
       'Excluir Paciente',
@@ -286,92 +280,89 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
-      <div className="max-w-7xl mx-auto">
-       <header className="mb-8 mt-16 text-center">
-            {/* Logo */}
-            <div className="flex justify-center mb-4">
-              <Image
-                src="/infobio.png"
-                alt="Logo InfoBio"
-                width={180}
-                height={180}
-                className="object-contain"
-                priority
+    <div className="min-h-screen h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <div className="max-w-7xl mx-auto h-full flex flex-col">
+        {/* Header compacto */}
+        <header className="mb-3 text-center flex-shrink-0">
+          <div className="flex justify-center mb-2">
+            <Image
+              src="/infobio.png"
+              alt="Logo InfoBio"
+              width={120}
+              height={40}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <h1 className="text-xl font-bold text-gray-800 mb-1">
+            Monitoramento de Pacientes Diabéticos - US Passo das Pedras I
+          </h1>
+        </header>
+
+        {/* Barra superior: Busca + User */}
+        <div className="mb-3 flex gap-3 flex-shrink-0">
+          {/* Busca */}
+          <div className="flex-1 bg-white rounded-lg shadow px-3 py-2">
+            <div className="relative">
+              <Search className="absolute left-0 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar paciente, rua, endereço..."
+                className="w-full pl-6 pr-2 py-1 text-sm border-0 focus:ring-0 focus:outline-none"
               />
             </div>
-            
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Monitoramento de Pacientes Diabéticos Unidade de Saúde Passo das Pedras I
-            </h1>
-            <p className="text-gray-600 ">
-              Sistema de mapa inteligente para acompanhamento de pacientes
-            </p>
-          </header>
-
-        {/* Barra de usuário e logout */}
-        <div className="mb-4 flex justify-end">
-          <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-3">
+          </div>
+          
+          {/* User info */}
+          <div className="bg-white rounded-lg shadow px-3 py-2 flex items-center gap-2 flex-shrink-0">
             <User className="w-4 h-4 text-gray-600" />
-            <span className="text-sm text-gray-700">
-              {userName ?? 'Carregando...'}
-            </span>
+            <span className="text-sm text-gray-700">{userName ?? 'Carregando...'}</span>
             <button
               onClick={() => {
                 localStorage.removeItem('user');
                 router.push('/login');
               }}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
+              className="text-xs text-red-600 hover:text-red-700 font-medium ml-2"
             >
               Sair
             </button>
           </div>
         </div>
 
-        {/* Barra de Busca */}
-        <div className="mb-6 bg-white rounded-xl shadow-lg p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar paciente por nome, endereço ou número"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-1000 mb-4 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-indigo-800" />
+        {/* Conteúdo principal - ocupa espaço restante */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+          {/* Formulário */}
+          <div className="lg:col-span-1 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow p-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-indigo-600" />
                 Cadastrar Paciente
               </h2>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <User className="w-4 h-4" />
-                    Nome do Paciente
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                    <User className="w-3 h-3" />
+                    Nome
                   </label>
                   <input
                     type="text"
                     value={formData.nomes}
                     onChange={(e) => setFormData({ ...formData, nomes: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Digite o nome"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Nome do paciente"
                   />
                 </div>
 
                 <div className="relative">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <MapPin className="w-4 h-4" />
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                    <MapPin className="w-3 h-3" />
                     Rua
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 z-10" />
                     <input
                       type="text"
                       value={streetSearchTerm}
@@ -380,105 +371,97 @@ export default function Page() {
                         setShowStreetDropdown(true);
                       }}
                       onFocus={() => setShowStreetDropdown(true)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Buscar rua..."
                     />
                   </div>
                   
                   {showStreetDropdown && filteredStreets.length > 0 && (
-                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-40 overflow-y-auto">
                       {filteredStreets.map((street) => (
                         <div
                           key={street}
                           onClick={() => handleSelectStreet(street)}
-                          className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700"
+                          className="px-3 py-1.5 hover:bg-indigo-50 cursor-pointer text-xs text-gray-700"
                         >
                           {street}
                         </div>
                       ))}
                     </div>
                   )}
-                  
-                  {showStreetDropdown && streetSearchTerm && filteredStreets.length === 0 && (
-                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
-                      <p className="text-sm text-gray-500 text-center">
-                        Nenhuma rua encontrada
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <Home className="w-4 h-4" />
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                    <Home className="w-3 h-3" />
                     Número
                   </label>
                   <input
                     type="text"
                     value={formData.número}
                     onChange={(e) => setFormData({ ...formData, número: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Número da casa"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Nº"
                   />
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <DoorOpen className="w-4 h-4" />
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                    <DoorOpen className="w-3 h-3" />
                     Complemento
                   </label>
                   <input
                     type="text"
                     value={formData.complemento}
                     onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Apartamento, bloco -(opcional)"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Opcional"
                   />
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                    <Calendar className="w-4 h-4" />
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                    <Calendar className="w-3 h-3" />
                     Data
                   </label>
                   <input
                     type="date"
                     value={formData.ultima_consulta}
                     onChange={(e) => setFormData({ ...formData, ultima_consulta: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
 
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 text-sm"
                 >
-                  <Plus className="w-5 h-5" />
-                  {loading ? 'Adicionando...' : 'Adicionar Paciente'}
+                  <Plus className="w-4 h-4" />
+                  {loading ? 'Adicionando...' : 'Adicionar'}
                 </button>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                  Total de Pacientes: {patients.length}
-                </h3>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-600">
+                  Total: <span className="font-semibold">{patients.length}</span> pacientes
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6 h-full">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <LocateFixed className="w-5 h-5 text-indigo-600" />
-                Mapa de Localização
-              </h2>
+          {/* Mapa */}
+          <div className="lg:col-span-2 overflow-hidden">
+            <div className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
               
-              <MapComponent 
-                patients={filteredPatients}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              
+              <div className="flex-1 min-h-0">
+                <MapComponent 
+                  patients={filteredPatients}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -593,7 +576,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* Toast Component */}
         {toast && (
           <Toast
             message={toast.message}
@@ -602,7 +584,6 @@ export default function Page() {
           />
         )}
 
-        {/* Confirmation Modal */}
         {confirmation && (
           <ConfirmationModal
             title={confirmation.title}
