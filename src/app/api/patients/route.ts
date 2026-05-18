@@ -10,6 +10,7 @@ export async function GET(request: Request) {
         id,
         nome,
         ultima_consulta,
+        condicao,
         ativo,
         enderecos (
           id,
@@ -36,10 +37,11 @@ const formattedData = data?.map(p => {
   return {
     id: p.id,
     nomes: p.nome,
+    condicao: p.condicao || '',
     endereços: rua?.nome || '',
     número: endereco?.numero || '',
     complemento: endereco?.complemento || '',
-    ultima_consulta: p.ultima_consulta ? 
+    ultima_consulta: p.ultima_consulta ?
       new Date(p.ultima_consulta).toLocaleDateString('pt-BR') : '',
     lat: endereco?.latitude || 0,
     lng: endereco?.longitude || 0
@@ -64,16 +66,16 @@ const formattedData = data?.map(p => {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { nomes, endereços, número, complemento, ultima_consulta } = body;
-    
+    const { nomes, endereços, número, complemento, ultima_consulta, condicao } = body;
+
     if (!nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
         { success: false, message: 'Todos os campos são obrigatórios' },
         { status: 400 }
       );
     }
-    
-    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, complemento, ultima_consulta });
+
+    console.log('[API] 📥 Dados recebidos:', { nomes, endereços, número, complemento, ultima_consulta, condicao });
     
     // Normalizar nome da rua
     const ruaNormalizada = endereços
@@ -181,7 +183,8 @@ export async function POST(request: Request) {
       .insert({
         nome: nomes,
         endereco_id: enderecoId,
-        ultima_consulta: dataFormatada
+        ultima_consulta: dataFormatada,
+        condicao: condicao || null
       })
       .select('id')
       .single();
@@ -212,7 +215,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, nomes, endereços, número, complemento, ultima_consulta } = body;
+    const { id, nomes, endereços, número, complemento, ultima_consulta, condicao } = body;
     
     if (!id || !nomes || !endereços || !número || !ultima_consulta) {
       return NextResponse.json(
@@ -317,7 +320,8 @@ export async function PUT(request: Request) {
       .update({
         nome: nomes,
         endereco_id: enderecoId,
-        ultima_consulta: dataFormatada
+        ultima_consulta: dataFormatada,
+        condicao: condicao || null
       })
       .eq('id', id);
     

@@ -43,11 +43,20 @@ const createLucideIcon = (
 
 // Criar os ícones
 const healthIcon = createLucideIcon(Hospital, '#ffffff', 36, '#ce1919ff');
-const patientIcon = createLucideIcon(User, '#ffffff', 20, '#1559c7ff');
+
+const patientIconByCondicao: Record<string, L.DivIcon> = {
+  hipertenso: createLucideIcon(User, '#ffffff', 20, '#dc2626'),
+  diabetico:  createLucideIcon(User, '#ffffff', 20, '#2563eb'),
+  gravidez:   createLucideIcon(User, '#ffffff', 20, '#7c3aed'),
+  default:    createLucideIcon(User, '#ffffff', 20, '#1559c7ff'),
+};
+
+type Condicao = 'hipertenso' | 'diabetico' | 'gravidez' | '';
 
 interface Patient {
   id: number;
   nomes: string;
+  condicao: Condicao;
   endereços: string;
   número: string;
   complemento?: string;
@@ -55,6 +64,12 @@ interface Patient {
   lat?: number;
   lng?: number;
 }
+
+const condicaoBadge: Record<string, { label: string; bg: string; color: string }> = {
+  hipertenso: { label: 'Hipertenso',  bg: '#fee2e2', color: '#dc2626' },
+  diabetico:  { label: 'Diabético',   bg: '#dbeafe', color: '#2563eb' },
+  gravidez:   { label: 'Gravidez',    bg: '#ede9fe', color: '#7c3aed' },
+};
 
 interface MapComponentProps {
   patients: Patient[];
@@ -219,11 +234,25 @@ export default function MapComponent({ patients, onEdit, onDelete }: MapComponen
           <Marker
             key={patient.id}
             position={[patient.lat!, patient.lng!]}
-            icon={patientIcon}
+            icon={patientIconByCondicao[patient.condicao] ?? patientIconByCondicao.default}
           >
             <Popup>
               <div className="patient-popup-container">
                 <div className="patient-name">{patient.nomes}</div>
+                {patient.condicao && condicaoBadge[patient.condicao] && (
+                  <span style={{
+                    display: 'inline-block',
+                    marginBottom: '6px',
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    backgroundColor: condicaoBadge[patient.condicao].bg,
+                    color: condicaoBadge[patient.condicao].color,
+                  }}>
+                    {condicaoBadge[patient.condicao].label}
+                  </span>
+                )}
                 <div className="patient-address">
                   {patient.endereços}, {patient.número}
                   {patient.complemento && ` - ${patient.complemento}`}
