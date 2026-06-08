@@ -7,9 +7,12 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 
+type Condicao = 'hipertenso' | 'diabetico' | 'gravidez' | '';
+
 interface Patient {
   id: number;
   nomes: string;
+  condicao: Condicao;
   endereços: string;
   número: string;
   complemento?: string;
@@ -50,6 +53,7 @@ export default function Page() {
   const [streetSearchTerm, setStreetSearchTerm] = useState('');
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCondicoes, setSelectedCondicoes] = useState<Set<Condicao>>(new Set());
   const [isEditing, setIsEditing] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,6 +80,7 @@ export default function Page() {
 
   const [formData, setFormData] = useState({
     nomes: '',
+    condicao: '' as Condicao,
     endereços: '',
     número: '',
     complemento: '',
@@ -99,17 +104,18 @@ export default function Page() {
   }, [streetSearchTerm, streets]);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredPatients(patients);
-    } else {
-      const filtered = patients.filter(patient =>
-        patient.nomes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.endereços.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.número.includes(searchTerm)
-      );
-      setFilteredPatients(filtered);
-    }
-  }, [searchTerm, patients]);
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = patients.filter(patient => {
+      const matchesText = term === '' ||
+        patient.nomes.toLowerCase().includes(term) ||
+        patient.endereços.toLowerCase().includes(term) ||
+        patient.número.includes(term);
+      const matchesCondicao = selectedCondicoes.size === 0 ||
+        selectedCondicoes.has(patient.condicao);
+      return matchesText && matchesCondicao;
+    });
+    setFilteredPatients(filtered);
+  }, [searchTerm, selectedCondicoes, patients]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -187,7 +193,7 @@ export default function Page() {
 
         if (data.success) {
           showToast('Paciente adicionado com sucesso!', 'success');
-          setFormData({ nomes: '', endereços: '', número: '', complemento: '', ultima_consulta: '' });
+          setFormData({ nomes: '', condicao: '', endereços: '', número: '', complemento: '', ultima_consulta: '' });
           setStreetSearchTerm('');
           fetchPatients();
         } else {
@@ -280,68 +286,102 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-      <div className="max-w-7xl mx-auto h-full flex flex-col">
-        {/* Header compacto */}
-        <header className="mb-3 text-center flex-shrink-0">
-          <div className="flex justify-center mb-2">
-            <Image
-              src="/infobio.png"
-              alt="Logo InfoBio"
-              width={120}
-              height={40}
-              className="object-contain"
-              priority
-            />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+      <div className="max-w-7xl mx-auto">
+
+        <header className="mb-8 mt-16 flex items-center gap-6">
+          <Image
+            src="/infobio.png"
+            alt="Logo InfoBio"
+            width={160}
+            height={64}
+            className="object-contain shrink-0"
+            priority
+          />
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-1">
+              Cadastro e Monitoramento Geográfico de Pacientes
+            </h1>
+            <p className="text-gray-600">
+              Sistema de mapa inteligente para acompanhamento de pacientes
+            </p>
           </div>
-          <h1 className="text-xl font-bold text-gray-800 mb-1">
-            Monitoramento de Pacientes Diabéticos - US Passo das Pedras I
-          </h1>
         </header>
 
-        {/* Barra superior: Busca + User */}
-        <div className="mb-3 flex gap-3 flex-shrink-0">
-          {/* Busca */}
-          <div className="flex-1 bg-white rounded-lg shadow px-3 py-2">
-            <div className="relative">
-              <Search className="absolute left-0 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar paciente, rua, endereço..."
-                className="w-full pl-6 pr-2 py-1 text-sm border-0 focus:ring-0 focus:outline-none"
-              />
-            </div>
-          </div>
-          
-          {/* User info */}
-          <div className="bg-white rounded-lg shadow px-3 py-2 flex items-center gap-2 flex-shrink-0">
+        {/* Barra de usuário e logout */}
+        <div className="mb-4 flex justify-end">
+          <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-3">
             <User className="w-4 h-4 text-gray-600" />
             <span className="text-sm text-gray-700">{userName ?? 'Carregando...'}</span>
             <button
-              onClick={() => {
-                localStorage.removeItem('user');
-                router.push('/login');
-              }}
-              className="text-xs text-red-600 hover:text-red-700 font-medium ml-2"
+              onClick={() => { localStorage.removeItem('user'); router.push('/login'); }}
+              className="text-sm text-red-600 hover:text-red-700 font-medium"
             >
               Sair
             </button>
           </div>
         </div>
 
-        {/* Conteúdo principal - ocupa espaço restante */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
-          {/* Formulário */}
-          <div className="lg:col-span-1 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <Plus className="w-4 h-4 text-indigo-600" />
+        {/* Barra de Busca + Filtros */}
+        <div className="mb-6 bg-white rounded-xl shadow-lg p-4 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar paciente por nome, endereço ou número"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 font-medium">Filtrar por condição:</span>
+            {([
+              { value: 'diabetico',  label: 'Diabético',  bg: '#dbeafe', color: '#2563eb', ring: '#93c5fd' },
+              { value: 'hipertenso', label: 'Hipertenso', bg: '#fee2e2', color: '#dc2626', ring: '#fca5a5' },
+              { value: 'gravidez',   label: 'Gravidez',   bg: '#ede9fe', color: '#7c3aed', ring: '#c4b5fd' },
+            ] as const).map(({ value, label, bg, color, ring }) => {
+              const active = selectedCondicoes.has(value);
+              return (
+                <button
+                  key={value}
+                  onClick={() => setSelectedCondicoes(prev => {
+                    const next = new Set(prev);
+                    active ? next.delete(value) : next.add(value);
+                    return next;
+                  })}
+                  style={{
+                    backgroundColor: active ? bg : 'transparent',
+                    color: active ? color : '#6b7280',
+                    border: `2px solid ${active ? color : '#d1d5db'}`,
+                    outline: active ? `3px solid ${ring}` : 'none',
+                  }}
+                  className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {selectedCondicoes.size > 0 && (
+              <button
+                onClick={() => setSelectedCondicoes(new Set())}
+                className="px-3 py-1 rounded-full text-xs font-medium text-gray-400 border border-gray-200 hover:text-gray-600 transition-colors"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-indigo-800" />
                 Cadastrar Paciente
               </h2>
-              
-              <div className="space-y-3">
+
+              <div className="space-y-4">
                 <div>
                   <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
                     <User className="w-3 h-3" />
@@ -356,6 +396,22 @@ export default function Page() {
                   />
                 </div>
 
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Condição
+                  </label>
+                  <select
+                    value={formData.condicao}
+                    onChange={(e) => setFormData({ ...formData, condicao: e.target.value as Condicao })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="diabetico">Diabético</option>
+                    <option value="hipertenso">Hipertenso</option>
+                    <option value="gravidez">Gravidez</option>
+                  </select>
+                </div>
+
                 <div className="relative">
                   <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
                     <MapPin className="w-3 h-3" />
@@ -366,16 +422,12 @@ export default function Page() {
                     <input
                       type="text"
                       value={streetSearchTerm}
-                      onChange={(e) => {
-                        setStreetSearchTerm(e.target.value);
-                        setShowStreetDropdown(true);
-                      }}
+                      onChange={(e) => { setStreetSearchTerm(e.target.value); setShowStreetDropdown(true); }}
                       onFocus={() => setShowStreetDropdown(true)}
                       className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Buscar rua..."
                     />
                   </div>
-                  
                   {showStreetDropdown && filteredStreets.length > 0 && (
                     <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-40 overflow-y-auto">
                       {filteredStreets.map((street) => (
@@ -387,6 +439,11 @@ export default function Page() {
                           {street}
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {showStreetDropdown && streetSearchTerm && filteredStreets.length === 0 && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+                      <p className="text-sm text-gray-500 text-center">Nenhuma rua encontrada</p>
                     </div>
                   )}
                 </div>
@@ -414,8 +471,8 @@ export default function Page() {
                     type="text"
                     value={formData.complemento}
                     onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Opcional"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Apartamento, bloco (opcional)"
                   />
                 </div>
 
@@ -450,18 +507,17 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Mapa */}
-          <div className="lg:col-span-2 overflow-hidden">
-            <div className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
-              
-              
-              <div className="flex-1 min-h-0">
-                <MapComponent 
-                  patients={filteredPatients}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </div>
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6 h-full">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <LocateFixed className="w-5 h-5 text-indigo-600" />
+                Mapa de Localização
+              </h2>
+              <MapComponent
+                patients={filteredPatients}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             </div>
           </div>
         </div>
@@ -475,10 +531,7 @@ export default function Page() {
                   <Edit2 className="w-5 h-5 text-indigo-600" />
                   Editar Paciente
                 </h2>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
+                <button onClick={() => setIsEditing(false)} className="text-gray-500 hover:text-gray-700">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -498,6 +551,22 @@ export default function Page() {
                 </div>
 
                 <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Condição
+                  </label>
+                  <select
+                    value={editingPatient.condicao}
+                    onChange={(e) => setEditingPatient({ ...editingPatient, condicao: e.target.value as Condicao })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="diabetico">Diabético</option>
+                    <option value="hipertenso">Hipertenso</option>
+                    <option value="gravidez">Gravidez</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                     <Home className="w-4 h-4" />
                     Endereço
@@ -508,9 +577,7 @@ export default function Page() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     {streets.map((street) => (
-                      <option key={street} value={street}>
-                        {street}
-                      </option>
+                      <option key={street} value={street}>{street}</option>
                     ))}
                   </select>
                 </div>
@@ -576,13 +643,7 @@ export default function Page() {
           </div>
         )}
 
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
         {confirmation && (
           <ConfirmationModal
@@ -590,10 +651,7 @@ export default function Page() {
             message={confirmation.message}
             confirmText="Sim, excluir"
             cancelText="Cancelar"
-            onConfirm={() => {
-              confirmation.onConfirm();
-              setConfirmation(null);
-            }}
+            onConfirm={() => { confirmation.onConfirm(); setConfirmation(null); }}
             onCancel={() => setConfirmation(null)}
             type="danger"
           />

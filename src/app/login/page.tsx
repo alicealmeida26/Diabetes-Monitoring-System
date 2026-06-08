@@ -52,24 +52,23 @@ export default function LoginPage() {
     <div className="min-h-screen h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-2xl p-8">
-          <div className="text-center mb-8">
-            {/* Logo substituindo o ícone */}
-            <div className="flex justify-center mb-4">
-              <Image
-                src="/infobio.png"
-                alt="InfoBio Logo"
-                width={180}
-                height={70}
-                className="object-contain"
-                priority
-              />
+          <div className="flex items-center gap-4 mb-8">
+            <Image
+              src="/infobio.png"
+              alt="InfoBio Logo"
+              width={120}
+              height={50}
+              className="object-contain shrink-0"
+              priority
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-1">
+                Cadastro e Monitoramento Geográfico de Pacientes
+              </h1>
+              <p className="text-gray-600 text-sm">
+                Unidade de Saúde Passo das Pedras I
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Sistema de Monitoramento de Pacientes Diabéticos
-            </h1>
-            <p className="text-gray-600 text-sm">
-              Unidade de Saúde Passo das Pedras I
-            </p>
           </div>
 
           {error && (
