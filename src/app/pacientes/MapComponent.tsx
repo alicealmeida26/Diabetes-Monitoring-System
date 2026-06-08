@@ -42,7 +42,7 @@ const createLucideIcon = (
 };
 
 // Criar os ícones
-const healthIcon = createLucideIcon(Hospital, '#ffffff', 36, '#ce1919ff');
+const healthIcon = createLucideIcon(Hospital, '#ffffff', 36, '#f97316');
 
 const patientIconByCondicao: Record<string, L.DivIcon> = {
   hipertenso: createLucideIcon(User, '#ffffff', 20, '#dc2626'),
